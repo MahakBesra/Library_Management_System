@@ -3,12 +3,23 @@ class Config:
     # Secret key for session management and CSRF protection (must match .env)
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-key-change-this-in-production')
     
-    # Database configuration (Railway MySQL)
-    DB_HOST = os.environ.get('MYSQL_HOST', 'nozomi.proxy.rlwy.net')
-    DB_USER = os.environ.get('MYSQL_USER', 'root')
-    DB_PASSWORD = os.environ.get('MYSQL_PASSWORD', 'wUiUFYWLRpyFsdLuLhsbQqCzFHPmlIMw')
-    DB_NAME = os.environ.get('MYSQL_DATABASE', 'librarys_management_system')
-    DB_PORT = int(os.environ.get('MYSQL_PORT', 29951))
+    # Database configuration (Railway MySQL or PlanetScale)
+    DATABASE_URL = os.environ.get('DATABASE_URL')
+    if DATABASE_URL:
+        # Parse DATABASE_URL for PlanetScale (mysql://user:pass@host:port/db)
+        from urllib.parse import urlparse
+        parsed = urlparse(DATABASE_URL)
+        DB_HOST = parsed.hostname
+        DB_USER = parsed.username
+        DB_PASSWORD = parsed.password
+        DB_NAME = parsed.path.lstrip('/')
+        DB_PORT = parsed.port or 3306
+    else:
+        DB_HOST = os.environ.get('MYSQL_HOST', 'nozomi.proxy.rlwy.net')
+        DB_USER = os.environ.get('MYSQL_USER', 'root')
+        DB_PASSWORD = os.environ.get('MYSQL_PASSWORD', 'wUiUFYWLRpyFsdLuLhsbQqCzFHPmlIMw')
+        DB_NAME = os.environ.get('MYSQL_DATABASE', 'librarys_management_system')
+        DB_PORT = int(os.environ.get('MYSQL_PORT', 29951))
     
     # Session configuration
     SESSION_TYPE = 'filesystem'

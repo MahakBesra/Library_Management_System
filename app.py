@@ -21,21 +21,33 @@ app.secret_key = Config.SECRET_KEY
 # -------------------------
 def get_db():
     if 'db' not in g:
-        try:
-            if not Config.DB_PASSWORD:
-                raise RuntimeError("DB_PASSWORD not configured in config.py or environment.")
-            g.db = mysql.connector.connect(
-                host=Config.DB_HOST,
-                user=Config.DB_USER,
-                password=Config.DB_PASSWORD,
-                database=Config.DB_NAME,
-                port=Config.DB_PORT,
-                autocommit=False
-            )
-            logger.debug("Database connection established.")
-        except mysql.connector.Error as err:
-            logger.exception("Database connection failed.")
-            raise RuntimeError(f"Database connection failed: {err}")
+        if not Config.DB_PASSWORD:
+            raise RuntimeError("DB_PASSWORD not configured in config.py or environment.")
+
+        for attempt in range(1, 4):
+            try:
+                g.db = mysql.connector.connect(
+                    host=Config.DB_HOST,
+                    user=Config.DB_USER,
+                    password=Config.DB_PASSWORD,
+                    database=Config.DB_NAME,
+                    port=Config.DB_PORT,
+                    autocommit=False,
+                    connection_timeout=10,
+                    charset='utf8mb4',
+                    use_unicode=True,
+                    ssl_disabled='railway' in Config.DB_HOST.lower(),  # Railway doesn't need SSL, PlanetScale does
+                    ssl_verify_cert=False  # For PlanetScale; use CA cert in production
+                )
+                logger.debug("Database connection established on attempt %s.", attempt)
+                break
+            except mysql.connector.Error as err:
+                logger.warning("Database connection attempt %s failed: %s", attempt, err)
+                if attempt == 3:
+                    logger.exception("Database connection failed after retries.")
+                    raise RuntimeError(f"Database connection failed: {err}")
+        else:
+            raise RuntimeError("Database connection failed after retries.")
     return g.db
 
 @app.teardown_appcontext
@@ -77,7 +89,8 @@ def login():
         if role not in ['admin', 'employee', 'member']:
             return "Invalid role specified.", 400
 
-        table = role.capitalize()  # Admin, Employee, Member
+        role_map = {'admin': 'Admin', 'employee': 'Employee', 'member': 'Member'}
+        table = role_map[role]
         db = get_db()
         try:
             # Use dictionary cursor for select to keep key access consistent
@@ -107,6 +120,9 @@ def login():
                     return redirect(url_for(f'{role}_dashboard'))
                 else:
                     return "Login Failed: Invalid username or password.", 401
+        except mysql.connector.Error as e:
+            logger.exception("Login Error: Database issue")
+            return "Service unavailable. Please try again shortly.", 503
         except Exception as e:
             logger.exception("Login Error")
             return f"Login Error: {str(e)}", 500
