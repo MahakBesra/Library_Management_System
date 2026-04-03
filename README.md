@@ -55,11 +55,11 @@ Create `.env` or environment variables:
 
 ```bash
 export SECRET_KEY='super-secret'
-export MYSQL_HOST='nozomi.proxy.rlwy.net'
+export MYSQL_HOST=''
 export MYSQL_PORT='29951'
 export MYSQL_USER='root'
-export MYSQL_PASSWORD='wUiUFYWLRpyFsdLuLhsbQqCzFHPmlIMw'
-export MYSQL_DATABASE='librarys_management_system'
+export MYSQL_PASSWORD=''
+export MYSQL_DATABASE=''
 ```
 
 6. Optional: edit `config.py` defaults if not using env variables.
